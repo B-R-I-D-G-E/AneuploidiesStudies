@@ -1,0 +1,462 @@
+---
+title: "Aneuploidies report"
+author: "Nidia Barco Armengol"
+date: "`r Sys.Date()`"
+output: html_document
+params:
+  pool_data: NULL
+  control_data: NULL
+  synthetic_data: NULL
+  synthetic: NULL
+  best_norms: NULL
+---
+
+```{r create_plots, echo=FALSE, include=FALSE}
+
+library("dplyr")
+library("ggplot2")
+library("ggrepel")
+library("ggpubr")
+library("circlize")
+library("ggfortify")
+library("vegan")
+library("karyoploteR")
+library("GenomicRanges")
+library("patchwork")
+library("ggforce")
+library("plotly")
+
+Pool_Rdata <- params$pool_data
+load(Pool_Rdata)
+
+data_pool <- subset(pool_coverage_values, pool_coverage_values$autosomes_mean>=50)
+
+Control_Rdata <- params$control_data
+load(Control_Rdata)
+
+data_control <- subset(pool_coverage_values, autosomes_mean >= 50)
+
+Synthetic_data <- params$synthetic_data
+load(Synthetic_data)
+
+altered_aneu <- data.frame(matrix(nrow = 0, ncol = 2))
+colnames(altered_aneu) <- c("Sample", "Altered_autosome")
+
+Chromosomes <- c(paste("Chr", 1:22, sep = ""))
+signif_synth <- read.csv2(params$synthetic)
+percentages <- seq(10, 100, by = 10)
+best_norms <- read.csv2(params$best_norms)
+plotlis <- list()
+
+## Autosomes
+
+for(c in Chromosomes){
+  
+  synthetic <- data_synth[grepl(paste0("_", c,"_"), data_synth$Sample),]
+  synthetic_signif <- subset(synthetic, Sample %in% signif_synth$Synthetic_significant)
+  synthetic_exclude <- subset(synthetic, !(Sample %in% signif_synth$Synthetic_significant))
+  data_complete <- rbind(data_control, synthetic, data_pool)
+  
+  crom_synth_sign <- subset(signif_synth, signif_synth$Chromosome==c)
+  
+  for (i in 1:length(percentages)) {
+  num <- percentages[i]
+  mono_pattern <- paste0("Monosomy", num, "$")
+  tri_pattern <- paste0("Trisomy", num, "$")
+  
+    if (any(grepl(mono_pattern, crom_synth_sign$Synthetic_significant)) & any(grepl(tri_pattern, crom_synth_sign$Synthetic_significant))) {
+      sample1 <- crom_synth_sign$Synthetic_significant[grep(mono_pattern, crom_synth_sign$Synthetic_significant)]
+      sample2 <- crom_synth_sign$Synthetic_significant[grep(tri_pattern, crom_synth_sign$Synthetic_significant)]
+      signif_line <- c((i - 1) * 2 + 1, (i - 1) * 2 + 2)
+      signif_percentage <- paste0(num, "%")
+      break
+    }
+  }
+  
+  norms <- subset(best_norms, best_norms$Chromosome==c)
+  data_norm_list <- list()
+  
+  for(n in norms$Normalization){
+    if (n=="Norm_all"){
+      Norm <- data.frame("Samples" = data_complete$Sample, 
+                         "Normalized_values" = data_complete[[paste0(c, "_mean")]]/data_complete[[paste0("No", gsub(".*Chr(\\d+)", "\\1", c), "_mean")]])
+      data_norm_list[[length(data_norm_list)+1]] <- Norm
+    } else{
+      Norm <- data.frame("Samples" = data_complete$Sample, 
+                         "Normalized_values" = data_complete[[paste0(c, "_mean")]]/data_complete[[paste0(strsplit(n,"_")[[1]][2], "_mean")]])
+      data_norm_list[[length(data_norm_list)+1]] <- Norm
+    }
+  }
+  
+  crom <- data.frame(data_norm_list[[1]]$Normalized_values, 
+                     data_norm_list[[2]]$Normalized_values, 
+                     data_norm_list[[3]]$Normalized_values)
+    
+  rownames(crom) <- data_norm_list[[1]]$Samples
+  colnames(crom) <- norms$Normalization
+    
+  pca.filt <- prcomp(crom, scale=T)
+  pca.data <- pca.filt$x
+  
+  ## Plotly
+  
+  pca.data <- subset(pca.data, !(rownames(pca.data) %in% synthetic_exclude$Sample))
+  
+  synth_colors <- rep(c("blue", "red"), 10)[nrow(synthetic_exclude)+1:20]
+  colores <- c(rep("black", nrow(data_control)), synth_colors, rep("purple", nrow(data_pool)))
+  
+  fig <- plot_ly(data = as.data.frame(pca.data), x = ~PC1, y = ~PC2, type = 'scatter', mode = 'markers',
+                   marker = list(color = colores),
+                   showlegend = FALSE, hoverinfo = "none")
+  
+  morado_data <- as.data.frame(pca.data[rownames(pca.data) %in% data_pool$Sample, ])
+  synth_1 <- data.frame("PC1"= pca.data[rownames(pca.data) %in% synthetic[grepl("Trisomy", synthetic$Sample),]$Sample, ][,1], 
+                        "PC2"= pca.data[rownames(pca.data) %in% synthetic[grepl("Trisomy", synthetic$Sample),]$Sample, ][,2], 
+                        "PC3"= pca.data[rownames(pca.data) %in% synthetic[grepl("Trisomy", synthetic$Sample),]$Sample, ][,3])
+  rownames(synth_1) <- synthetic_signif[grepl("Trisomy", synthetic_signif$Sample),]$Sample
+  synth_2 <- data.frame("PC1"= pca.data[rownames(pca.data) %in% synthetic[grepl("Monosomy", synthetic$Sample),]$Sample, ][,1], 
+                        "PC2"= pca.data[rownames(pca.data) %in% synthetic[grepl("Monosomy", synthetic$Sample),]$Sample, ][,2], 
+                        "PC3"= pca.data[rownames(pca.data) %in% synthetic[grepl("Monosomy", synthetic$Sample),]$Sample, ][,3])
+  rownames(synth_2) <- synthetic_signif[grepl("Monosomy", synthetic_signif$Sample),]$Sample
+  
+  morado_data$hover_text <- paste("Sample: ", rownames(morado_data), 
+                                  "<br>PC1: ", round(morado_data$PC1, 2), 
+                                  "<br>PC2: ", round(morado_data$PC2, 2))
+  synth_1$hover_text <- paste("Sample: ", rownames(synth_1), 
+                              "<br>PC1: ", round(synth_1$PC1, 2), 
+                              "<br>PC2: ", round(synth_1$PC2, 2))
+  synth_2$hover_text <- paste("Sample: ", rownames(synth_2), 
+                              "<br>PC1: ", round(synth_2$PC1, 2), 
+                              "<br>PC2: ", round(synth_2$PC2, 2))
+  
+  fig <- fig %>% add_trace(
+    data = morado_data, x = ~PC1, y = ~PC2, type = "scatter", mode = "markers+text", textposition = "top right", 
+    textfont = list(color = "purple", size = 10), marker = list(color = "purple"), hoverinfo = "text",
+    hovertext = morado_data$hover_text)
+    
+  fig <- fig %>% add_trace(data = synth_1, x = ~PC1, y = ~PC2, type = "scatter", mode = "markers+text", text = "",
+                           textposition = "top", textfont = list(color = "blue", size = 10), 
+                           marker = list(color = "blue", size = 10), hoverinfo = "text", hovertext = synth_1$hover_text)
+  
+  fig <- fig %>% add_trace(data = synth_2, x = ~PC1, y = ~PC2, type = "scatter", mode = "markers+text", text = "",
+                           textposition = "top", textfont = list(color = "red", size = 10),
+                           marker = list(color = "red", size = 10), hoverinfo = "text", hovertext = synth_2$hover_text)
+  
+  fig <- fig %>% layout(title = paste0("Chromosome ", gsub(".*Chr(\\d+)", "\\1", c)), xaxis = list(title = "PC1"), yaxis = list(title = "PC2"),
+                            shapes = list(list(type = "line", x0 = pca.data[sample1, "PC1"], x1 = pca.data[sample1, "PC1"], y0 = min(pca.data[,2]), y1 = max(pca.data[,2]),
+                                               line = list(color = "gray", dash = "dash"), xref = "x", yref = "y"),
+                                          list(type = "line", x0 = pca.data[sample2, "PC1"], x1 = pca.data[sample2, "PC1"], y0 = min(pca.data[,2]), y1 = max(pca.data[,2]), 
+                                               line = list(color = "gray", dash = "dash"), xref = "x", yref = "y")), 
+                            annotations = list(list(x = pca.data[sample1, "PC1"], y = max(pca.data[,2]), text = signif_percentage,
+                                                    showarrow = FALSE, font = list(size = 12, color = "black"), xanchor = "left", yanchor = "top"), 
+                                               list(x = pca.data[sample2, "PC1"], y = max(pca.data[,2]), text = signif_percentage, 
+                                                    showarrow = FALSE, font = list(size = 12, color = "black"), xanchor = "left", yanchor = "top")))
+  
+  plotlis[[c]] <- fig
+  
+  lim_inferior <- min(pca.data[sample1, "PC1"], pca.data[sample2, "PC1"])
+  lim_superior <- max(pca.data[sample1, "PC1"], pca.data[sample2, "PC1"])
+  fuera <- as.data.frame(pca.data)[pca.data[,1] < lim_inferior | pca.data[,1] > lim_superior, ]
+  samples <- rownames(fuera)
+  for(s in samples){
+    if(length(grep("Monosomy",s))==0 & length(grep("Trisomy",s))==0){
+      altered_aneu[nrow(altered_aneu)+1,] <- c(s, c)
+    }
+  }
+}
+
+## Sex chormosomes
+
+data_sex <- rbind(data_control, data_pool)
+
+norms <- subset(best_norms, best_norms$Chromosome=="ChrX|Y")
+top_norm <- 1
+
+for(n in norms$Normalization){
+  if(n=="Norm_all"){
+      Norm <- data.frame("Sample" = data_sex$Sample, 
+                                    "X_norm" = data_sex$ChrX_mean/data_sex$autosomes_mean, 
+                                    "Y_norm" = data_sex$ChrY_mean/data_sex$autosomes_mean)
+    } else{
+      Norm <- data.frame("Sample" = data_sex$Sample, 
+                                    "X_norm" = data_sex$ChrX_mean/data_sex[[paste0(strsplit(n,"_")[[1]][2], "_mean")]], 
+                                    "Y_norm" = data_sex$ChrY_mean/data_sex[[paste0(strsplit(n,"_")[[1]][2], "_mean")]])
+    }
+  
+  Norm <- Norm %>% dplyr::mutate(Y_norm = ifelse(is.nan(Y_norm), as.numeric("0.0002"),Y_norm), 
+                                 Karyotype = ifelse(Y_norm < 0.25, "XX","XY"))
+  Norm <- Norm %>% dplyr::mutate(Pool = ifelse(Sample %in% data_pool$Sample, "Sample", "Control"))
+  
+  plot <- plot_ly(
+        data = Norm,
+        x = ~X_norm,
+        y = ~Y_norm,
+        type = 'scatter',
+        mode = 'markers',
+        symbol = ~Karyotype,
+        symbols = c("circle", "square", "diamond", "cross", 
+                    "x", "triangle-up", "triangle-down", "star"),
+        marker = list(size = 10, color = "#a19f9f"),
+        showlegend = TRUE,
+        legendgroup = "shape", 
+        hoverinfo = "none"
+      )
+
+      morado_data <- subset(Norm, Sample %in% data_pool$Sample)
+      morado_data$hover_text <- paste(
+        "Sample: ", morado_data$Sample, 
+        "<br>X_norm: ", round(morado_data$X_norm, 2), 
+        "<br>Y_norm: ", round(morado_data$Y_norm, 2)
+      )
+
+      plot <- plot %>% add_trace(
+        data = morado_data,
+        x = ~X_norm,
+        y = ~Y_norm,
+        type = "scatter",
+        mode = "markers+text",
+        marker = list(color = "purple", size = 10),
+        hoverinfo = "text",
+        hovertext = ~hover_text,
+        showlegend = FALSE
+      )
+
+      plot <- plot %>% layout(title = paste0("Samples normalized using ", strsplit(n,"_")[[1]][2]),
+                                xaxis = list(title = "Normalized X"),
+                                yaxis = list(title = "Normalized Y"), 
+                                legend=list(title=list(text='<b> Karyotypes </b>')))
+      
+      plotlis[[paste0("sex_", top_norm)]] <- plot
+  
+  top_norm <- top_norm + 1
+  
+}
+
+```
+
+This report contains the results of the detection of autosomal and sexual anueploidies based on mean values of chromosome coverage of the different chromosomes.
+
+## Autosomal aneuploidies {.tabset}
+
+```{r, echo=FALSE}
+
+if(nrow(altered_aneu)==0){
+  altered_aneu[1,] <- c("    ", "    ")
+  altered_aneu[2,] <- c("    ", "    ")
+  knitr::kable(altered_aneu)
+} else{
+  
+  altered_aneu_combined <- altered_aneu %>%
+  group_by(Sample) %>%
+  summarise(
+    Altered_autosome = paste(sort(Altered_autosome), collapse = "/"),
+    .groups = "drop"
+  ) %>%
+  arrange(Altered_autosome)
+  
+  knitr::kable(altered_aneu_combined)
+}
+
+```
+
+### Chr1
+
+```{r, echo=FALSE}
+
+plotlis$Chr1
+
+```
+
+### Chr2
+
+```{r, echo=FALSE}
+
+plotlis$Chr2
+
+```
+
+### Chr3
+
+```{r, echo=FALSE}
+
+plotlis$Chr3
+
+```
+
+### Chr4
+
+```{r, echo=FALSE}
+
+plotlis$Chr4
+
+```
+
+### Chr5
+
+```{r, echo=FALSE}
+
+plotlis$Chr5
+
+```
+
+### Chr6
+
+```{r, echo=FALSE}
+
+plotlis$Chr6
+
+```
+
+### Chr7
+
+```{r, echo=FALSE}
+
+plotlis$Chr7
+
+```
+
+### Chr8
+
+```{r, echo=FALSE}
+
+plotlis$Chr8
+
+```
+
+### Chr9
+
+```{r, echo=FALSE}
+
+plotlis$Chr9
+
+```
+
+### Chr10
+
+```{r, echo=FALSE}
+
+plotlis$Chr10
+
+```
+
+### Chr11
+
+```{r, echo=FALSE}
+
+plotlis$Chr11
+
+```
+
+### Chr12
+
+```{r, echo=FALSE}
+
+plotlis$Chr12
+
+```
+
+### Chr13
+
+```{r, echo=FALSE}
+
+plotlis$Chr13
+
+```
+
+### Chr14
+
+```{r, echo=FALSE}
+
+plotlis$Chr14
+
+```
+
+### Chr15
+
+```{r, echo=FALSE}
+
+plotlis$Chr15
+
+```
+
+### Chr16
+
+```{r, echo=FALSE}
+
+plotlis$Chr16
+
+```
+
+### Chr17
+
+```{r, echo=FALSE}
+
+plotlis$Chr17
+
+```
+
+### Chr18
+
+```{r, echo=FALSE}
+
+plotlis$Chr18
+
+```
+
+### Chr19
+
+```{r, echo=FALSE}
+
+plotlis$Chr19
+
+```
+
+### Chr20
+
+```{r, echo=FALSE}
+
+plotlis$Chr20
+
+```
+
+### Chr21
+
+```{r, echo=FALSE}
+
+plotlis$Chr21
+
+```
+
+### Chr22
+
+```{r, echo=FALSE}
+
+plotlis$Chr22
+
+```
+
+## Sexual aneuploidies {.tabset}
+
+### XX-XY 1st Normalization
+
+```{r, echo=FALSE}
+
+plotlis$sex_1
+
+```
+
+### XX-XY 2nd Normalization
+
+```{r, echo=FALSE}
+
+plotlis$sex_2
+
+```
+
+### XX-XY 3rd Normalization
+
+```{r, echo=FALSE}
+
+plotlis$sex_3
+
+```

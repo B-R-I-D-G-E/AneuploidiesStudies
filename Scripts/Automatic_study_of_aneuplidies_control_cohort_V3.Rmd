@@ -1,0 +1,969 @@
+---
+title: "Automatic study of aneuploidies control cohort"
+author: "Nidia Barco Armengol"
+date: "`r Sys.Date()`"
+output: html_document
+params:
+  control_data: NULL  
+  bed_file: NULL
+  genome: NULL
+  threshold: NULL
+  threshold_signif: NULL
+  output_dir: NULL
+---
+
+```{r load_packages, message=FALSE, echo=FALSE}
+
+library("dplyr")
+library("ggplot2")
+library("ggrepel")
+library("ggpubr")
+library("circlize")
+library("ggfortify")
+library("vegan")
+library("karyoploteR")
+library("GenomicRanges")
+library("patchwork")
+library("ggforce")
+
+```
+
+## Quality of mean coverage 
+
+To ensure data quality, samples with low sequencing coverage were excluded.
+Specifically, any sample with a mean coverage across autosomes below 50 was considered low quality and removed from further analysis.
+
+```{r, message=FALSE, echo=FALSE}
+
+Rdata <- params$control_data
+
+load(Rdata)
+
+ggplot(pool_coverage_values, aes(x = autosomes_mean)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) + 
+  geom_vline(xintercept = params$threshold, color = "red", linetype = "dashed") +
+  annotate("text", x = params$threshold, y = Inf, label = paste0("Quality threshold (", params$threshold, ")"),
+           angle = 90, vjust = -0.5, hjust = 1.1, color = "red", size = 4) +
+  labs(title = "Coverage density plot of control samples", x = "Set of autosomes mean values", y = "")
+
+data_control <- subset(pool_coverage_values, autosomes_mean >= params$threshold)
+
+```
+
+**Samples before filtering:** `r nrow(pool_coverage_values)`  
+**Samples after filtering:** `r nrow(data_control)`
+
+## Coverage analyses of bed files {.tabset}
+
+This section presents visualizations of genomic regions defined in a BED file. We use two main types of plots with a reference genome `r params$genome`:
+
+- Circos plot: for a circular overview of the distribution across the whole genome.
+
+- Karyoplots: to visualize feature density across each individual chromosome using the karyoploteR package.
+
+### Circos plot
+
+The following Circos plot visualizes the genomic density of features listed in the BED file.
+
+```{r Coverage_plot, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  bed_file <- read.table(file = params$bed_file, header = FALSE, sep = "\t", col.names = c("chr", "start", "end", "gene"))
+  
+  circos.initializeWithIdeogram(species = params$genome)
+  circos.genomicDensity(bed_file, col = c("#f9b16d"), track.height = 0.1)
+  circos.clear()
+}
+
+```
+
+### KaryoplotR plots {.tabset}
+
+This section shows linear chromosome plots for each chromosome using the KaryoplotR package. Each plot displays the density of features along the length of a chromosome, allowing detailed inspection of feature distribution.
+
+#### Chr1
+
+```{r karyoplots_chr1, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  GRanges_bed <- GRanges(
+  seqnames = bed_file$chr,  
+  ranges = IRanges(start = bed_file$start, end = bed_file$end),  
+  gene = bed_file$gene
+  )
+  
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr1"))
+  title("Density of features chr1")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr2
+
+```{r karyoplots_chr2, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr2"))
+  title("Density of features chr2")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr3
+
+```{r karyoplots_chr3, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr3"))
+  title("Density of features chr3")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr4
+
+```{r karyoplots_chr4, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr4"))
+  title("Density of features chr4")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr5
+
+```{r karyoplots_chr5, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr5"))
+  title("Density of features chr5")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr6
+
+```{r karyoplots_chr6, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr6"))
+  title("Density of features chr6")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr7
+
+```{r karyoplots_chr7, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr7"))
+  title("Density of features chr7")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr8
+
+```{r karyoplots_chr8, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr8"))
+  title("Density of features chr8")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr9
+
+```{r karyoplots_chr9, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr9"))
+  title("Density of features chr9")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr10
+
+```{r karyoplots_chr10, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr10"))
+  title("Density of features chr10")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr11
+
+```{r karyoplots_chr11, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr11"))
+  title("Density of features chr11")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr12
+
+```{r karyoplots_chr12, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr12"))
+  title("Density of features chr12")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr13
+
+```{r karyoplots_chr13, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr13"))
+  title("Density of features chr13")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr14
+
+```{r karyoplots_chr14, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr14"))
+  title("Density of features chr14")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr15
+
+```{r karyoplots_chr15, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr15"))
+  title("Density of features chr15")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr16
+
+```{r karyoplots_chr16, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr16"))
+  title("Density of features chr16")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr17
+
+```{r karyoplots_chr17, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr17"))
+  title("Density of features chr17")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr18
+
+```{r karyoplots_chr18, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr18"))
+  title("Density of features chr18")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr19
+
+```{r karyoplots_chr19, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr19"))
+  title("Density of features chr19")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr20
+
+```{r karyoplots_chr20, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr20"))
+  title("Density of features chr20")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr21
+
+```{r karyoplots_chr21, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr21"))
+  title("Density of features chr21")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### Chr22
+
+```{r karyoplots_chr22, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chr22"))
+  title("Density of features chr22")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### ChrX
+
+```{r karyoplots_chrX, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chrX"))
+  title("Density of features chrX")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+#### ChrY
+
+```{r karyoplots_chrY, message=FALSE, echo=FALSE}
+
+if(params$bed_file!="NA"){
+  kp <- plotKaryotype(plot.type=6, genome = params$genome, chromosomes = c("chrY"))
+  title("Density of features chrY")
+  kpPlotDensity(kp, data = GRanges_bed, , col = "#f9b16d", r1=1)
+}
+
+```
+
+## Study of autosomes
+
+To analyze the autosomes, the average coverage value for each autosome in the control samples was calculated. Then, different normalizations were applied by dividing this value either by the average coverage of each other autosome individually or by the average coverage of all autosomes except the one being studied.
+
+For each autosome and normalization method, the standard deviation of these normalized values across all samples was calculated. The standard deviation measures how much the data varies and helps us identify the normalizations that allow better clustering of the cohort samples.
+
+In addition, synthetic samples with varying percentages of mosaic aneuploidies are generated. This helps determine the minimum percentage of mosaicism required for a sample to clearly stand out from the control group.
+
+```{r create_normalized_data, message=FALSE, echo=FALSE}
+
+generate_all_normalizations <- function(data){
+  Chroms <- paste("Chr", 1:22, sep = "")
+  data_norm_list <- list()
+  
+  # 1 autosome normalization
+  
+  for(c in Chroms){
+    data_norm <- data.frame("Samples" = rep(data$Sample, 22),
+                            "Normalized_values" = unlist(lapply(1:22, \(i) data[[paste0("Chr", i, "_mean")]] / data[[paste0(c, "_mean")]])), 
+                            "Chromosomes" = rep(paste0("Chr", 1:22), each = nrow(data)))
+  
+    data_norm <- data_norm %>% mutate(Chromosomes = factor(Chromosomes, levels = rep(paste0("Chr", 1:22))))
+    data_norm_list[[c]] <- data_norm
+  }
+  
+  # rest of autosomes normalization
+  
+  data_norm <- data.frame("Samples" = rep(data$Sample, 22),
+                            "Normalized_values" = unlist(lapply(1:22, \(i) data[[paste0("Chr", i, "_mean")]] / data[[paste0("No",i, "_mean")]])),  
+                            "Chromosomes" = rep(paste0("Chr", 1:22), each = nrow(data)))
+  
+    data_norm <- data_norm %>% mutate(Chromosomes = factor(Chromosomes, levels = rep(paste0("Chr", 1:22))))
+  
+    data_norm_list[["all"]] <- data_norm
+    
+    return(data_norm_list)
+}
+
+data_control_norm_list <- generate_all_normalizations(data_control)
+
+```
+
+```{r create_normalized_synthetic_data, message=FALSE, echo=FALSE}
+
+percentages <- c(10,20,30,40,50,60,70,80,90,100)
+increments <- percentages * 0.005 
+
+data_synth <- data.frame()
+
+for(chr in 1:22){
+  column <- paste0("Chr", chr, "_mean")
+  
+  for(p in 1:length(percentages)){
+    pct <- percentages[p]
+    inc <- increments[p]
+    
+    trisomy_sample <- data_control[1, ]
+    trisomy_sample[[column]] <- trisomy_sample[[column]]+(trisomy_sample[[column]]*inc)
+    trisomy_sample$Sample <- paste0("sample_Chr", chr, "_Trisomy", pct)
+    
+    monosomy_sample <- data_control[1, ]
+    monosomy_sample[[column]] <- monosomy_sample[[column]]-(monosomy_sample[[column]]*inc)
+    monosomy_sample$Sample <- paste0("sample_Chr", chr, "_Monosomy", pct)
+    
+    data_synth <- rbind(data_synth, trisomy_sample, monosomy_sample)
+  }
+}
+
+save(data_synth, file = paste0(params$output_dir, "Synthetic_data.RData"))
+
+data_synth_norm_list <- generate_all_normalizations(data_synth)
+
+```
+
+```{r calculate_sd, message=FALSE, echo=FALSE}
+
+chroms <- c(paste0("Chr", 1:22), "all")
+
+dispersions <- data.frame(matrix(NA, nrow = 23, ncol = 22))
+rownames(dispersions) <- c(paste0("Norm_", chroms[1:22]), "Norm_all")
+colnames(dispersions) <- chroms[1:22]
+
+for (n in 1:length(chroms)){
+  ref_chr <- chroms[n]
+  
+  for (j in 1:22){
+    target_chr <- chroms[j]
+    if (ref_chr != target_chr) {
+      dispersions[n, j] <- sd(data_control_norm_list[[n]]$Normalized_values[data_control_norm_list[[n]]$Chromosomes == target_chr])
+    }
+  }
+}
+
+```
+
+### Top 3 Normalizations {.tabset}
+
+To detect these differences, we perform Principal Component Analysis (PCA) separately for each autosome, using data normalized by the three best normalization methods. PCA reduces the data to its most important components, and we focus on the first principal component (PC1), which explains the largest variation.
+
+Outliers are identified based on:
+
+The quartiles Q1 and Q3, which represent the 25th and 75th percentiles of the data.
+
+The interquartile range (IQR), calculated as Q3 minus Q1.
+
+Samples with PC1 values lying beyond a strict cutoff—more than `r params$threshold_signif` times the IQR below Q1 or above Q3—are considered outliers, meaning they differ significantly from the control group.
+
+This approach is also used to determine which synthetic samples, created with different percentages of mosaicism for each autosome, show significant differences from the control group according to the formula described above.
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+signif_synthetics <- data.frame(matrix(nrow = 0, ncol = 2))
+colnames(signif_synthetics) <- c("Synthetic_significant", "Chromosome")
+
+best_norms <- data.frame(matrix(nrow = 0, ncol = 2))
+
+create_crom_data <- function(data_list){
+  autosomes <- paste0("Chr", 1:22)
+  crom_data_list <- list()
+
+  for(aut in autosomes){
+    crom_columns <- list()
+    rest_of_autosomes <- c(setdiff(autosomes, aut), "all")
+    for(rest in rest_of_autosomes){
+      values <- subset(data_list[[rest]], Chromosomes == aut)$Normalized_values
+      crom_columns[[rest]] <- values
+    }
+    crom <- data.frame(crom_columns)
+    colnames(crom) <- paste0("Norm_", rest_of_autosomes)
+    rownames(crom) <- subset(data_list[[aut]], Chromosomes == aut)$Samples
+  
+    crom_data_list[[aut]] <- crom
+  }
+  return(crom_data_list)
+}
+
+crom_control_data_list <- create_crom_data(data_control_norm_list)
+
+crom_synthetic_data_list <- create_crom_data(data_synth_norm_list)
+
+df_top3_list <- list()
+df_outliers_list <- list()
+pca.data_top3_list <- list()
+lines_vectors_list <- list()
+
+synth_ini <- 1
+synth_end <- 20
+
+autosomes <- paste0("Chr", 1:22)
+  
+for(a in autosomes){
+  
+  crom <- crom_control_data_list[[a]]
+  synth_crom <- crom_synthetic_data_list[[a]]
+  
+  synth_crom <- synth_crom[synth_ini:synth_end,]
+  complet_crom <- rbind(crom, synth_crom)
+  synth_ini <- synth_ini + 20
+  synth_end <- synth_end + 20
+  
+  disper <- dispersions[colnames(dispersions) == a]
+  disper <- subset(disper, !(rownames(disper) %in% c("Norm_Chr13", "Norm_Chr18", "Norm_Chr21")))
+  order_disp <- order(disper[,1])
+  
+  top_3 <- row.names(disper)[order_disp[1:3]]
+  df_top3 <- data.frame("Normalized_by" = row.names(disper)[order_disp[1:3]], "SD_value" = as.numeric(disper[order_disp[1:3],1]))
+  df_top3_list[[a]] <- df_top3
+  best_norms <- rbind(best_norms, data.frame("Normalization" = df_top3$Normalized_by, "Chromosome" = rep(a, 3)))
+  
+  top_3 <- row.names(disper)[order_disp[1:3]]
+  crom_data_top3 <- complet_crom[,top_3]
+  pca.filt_top3 <- prcomp(crom_data_top3, scale=T)
+  pca.data_top3 <- pca.filt_top3$x
+  
+  PC1 <- pca.data_top3[, 1]
+  Q1 <- quantile(PC1, 0.25)
+  Q3 <- quantile(PC1, 0.75)
+  IQR_value <- IQR(PC1)
+  
+  outliers <- PC1[PC1 < (Q1 - params$threshold_signif * IQR_value) | PC1 > (Q3 + params$threshold_signif * IQR_value)]
+  df_outliers <- data.frame("Samples" = names(outliers), "PC1_values" = outliers, row.names = 1:length(outliers))
+  df_outliers_list[[a]] <- df_outliers
+  
+  lines <- rep("gray", 10)  # Valor por defecto
+
+  for (i in seq(10, 100, by = 10)) {
+    trisomy <- paste0("sample_", a, "_Trisomy", i)
+    monosomy <- paste0("sample_", a, "_Monosomy", i)
+  
+    if (trisomy %in% names(outliers) & monosomy %in% names(outliers)) {
+      lines <- c(rep("gray", (i / 10) - 1), rep("purple", 10 - ((i / 10) - 1)))
+      break
+    }
+  }
+  
+  lines_vectors_list[[a]] <- lines
+  pca.data_top3_list[[a]] <- pca.data_top3
+  
+  for(l in 1:nrow(df_outliers)){
+    out <- df_outliers[l,]
+    if(!(length(grep("Monosomy|Trisomy", out$Samples))==0)){
+      signif_synthetics[nrow(signif_synthetics)+1,] <- c(out$Samples, a)
+    }
+  }
+}
+
+create_ggplot <- function(pca.data_top3, n_samples_cohort, lines, chromosome){
+  PC2_c <- ggplot(pca.data_top3, aes(x = PC1, y = PC2)) +
+    geom_point(aes(colour = factor(c(rep("black", n_samples_cohort), rep(c("blue", "red"), 10)))), show.legend = F) +
+    labs(title = paste0("PCA of ", chromosome, " with Top3 normalizations and synthetic samples"), 
+         x = "PC1",
+          y = "PC2") +
+    scale_colour_manual(values = c("black", "blue", "red")) +
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+1, "PC1"], linetype="dashed", color = lines[1]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+2, "PC1"], linetype="dashed", color = lines[1]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+3, "PC1"], linetype="dashed", color = lines[2]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+4, "PC1"], linetype="dashed", color = lines[2]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+5, "PC1"], linetype="dashed", color = lines[3]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+6, "PC1"], linetype="dashed", color = lines[3]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+7, "PC1"], linetype="dashed", color = lines[4]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+8, "PC1"], linetype="dashed", color = lines[4]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+9, "PC1"], linetype="dashed", color = lines[5]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+10, "PC1"], linetype="dashed", color = lines[5]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+11, "PC1"], linetype="dashed", color = lines[6]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+12, "PC1"], linetype="dashed", color = lines[6]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+13, "PC1"], linetype="dashed", color = lines[7]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+14, "PC1"], linetype="dashed", color = lines[7]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+15, "PC1"], linetype="dashed", color = lines[8]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+16, "PC1"], linetype="dashed", color = lines[8]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+17, "PC1"], linetype="dashed", color = lines[9]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+18, "PC1"], linetype="dashed", color = lines[9]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+19, "PC1"], linetype="dashed", color = lines[10]) + 
+    geom_vline(xintercept = pca.data_top3[n_samples_cohort+20, "PC1"], linetype="dashed", color = lines[10])
+  
+  plot(PC2_c)
+}
+
+```
+
+#### Chr1
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr1, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr1, nrow(data_control), lines_vectors_list$Chr1, "Chr1")
+
+knitr::kable(df_outliers_list$Chr1, caption = "Significant synthetic samples")
+
+```
+
+#### Chr2
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr2, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr2, nrow(data_control), lines_vectors_list$Chr2, "Chr2")
+
+knitr::kable(df_outliers_list$Chr2, caption = "Significant synthetic samples")
+
+```
+
+#### Chr3
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr3, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr3, nrow(data_control), lines_vectors_list$Chr3, "Chr3")
+
+knitr::kable(df_outliers_list$Chr3, caption = "Significant synthetic samples")
+
+```
+
+#### Chr4
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr4, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr4, nrow(data_control), lines_vectors_list$Chr4, "Chr4")
+
+knitr::kable(df_outliers_list$Chr4, caption = "Significant synthetic samples")
+
+```
+
+#### Chr5
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr5, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr5, nrow(data_control), lines_vectors_list$Chr5, "Chr5")
+
+knitr::kable(df_outliers_list$Chr5, caption = "Significant synthetic samples")
+
+```
+
+#### Chr6
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr6, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr6, nrow(data_control), lines_vectors_list$Chr6, "Chr6")
+
+knitr::kable(df_outliers_list$Chr6, caption = "Significant synthetic samples")
+
+```
+
+#### Chr7
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr7, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr7, nrow(data_control), lines_vectors_list$Chr7, "Chr7")
+
+knitr::kable(df_outliers_list$Chr7, caption = "Significant synthetic samples")
+
+```
+
+#### Chr8
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr8, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr8, nrow(data_control), lines_vectors_list$Chr8, "Chr8")
+
+knitr::kable(df_outliers_list$Chr8, caption = "Significant synthetic samples")
+
+```
+
+#### Chr9
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr9, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr9, nrow(data_control), lines_vectors_list$Chr9, "Chr9")
+
+knitr::kable(df_outliers_list$Chr9, caption = "Significant synthetic samples")
+
+```
+
+#### Chr10
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr10, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr10, nrow(data_control), lines_vectors_list$Chr10, "Chr10")
+
+knitr::kable(df_outliers_list$Chr10, caption = "Significant synthetic samples")
+
+```
+
+#### Chr11
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr11, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr11, nrow(data_control), lines_vectors_list$Chr11, "Chr11")
+
+knitr::kable(df_outliers_list$Chr11, caption = "Significant synthetic samples")
+
+```
+
+#### Chr12
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr12, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr12, nrow(data_control), lines_vectors_list$Chr12, "Chr12")
+
+knitr::kable(df_outliers_list$Chr12, caption = "Significant synthetic samples")
+
+```
+
+#### Chr13
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr13, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr13, nrow(data_control), lines_vectors_list$Chr13, "Chr13")
+
+knitr::kable(df_outliers_list$Chr13, caption = "Significant synthetic samples")
+
+```
+
+#### Chr14
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr14, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr14, nrow(data_control), lines_vectors_list$Chr14, "Chr14")
+
+knitr::kable(df_outliers_list$Chr14, caption = "Significant synthetic samples")
+
+```
+
+#### Chr15
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr15, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr15, nrow(data_control), lines_vectors_list$Chr15, "Chr15")
+
+knitr::kable(df_outliers_list$Chr15, caption = "Significant synthetic samples")
+
+```
+
+#### Chr16
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr16, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr16, nrow(data_control), lines_vectors_list$Chr16, "Chr16")
+
+knitr::kable(df_outliers_list$Chr16, caption = "Significant synthetic samples")
+
+```
+
+#### Chr17
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr17, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr17, nrow(data_control), lines_vectors_list$Chr17, "Chr17")
+
+knitr::kable(df_outliers_list$Chr17, caption = "Significant synthetic samples")
+
+```
+
+#### Chr18
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr18, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr18, nrow(data_control), lines_vectors_list$Chr18, "Chr18")
+
+knitr::kable(df_outliers_list$Chr18, caption = "Significant synthetic samples")
+
+```
+
+#### Chr19
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr19, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr19, nrow(data_control), lines_vectors_list$Chr19, "Chr19")
+
+knitr::kable(df_outliers_list$Chr19, caption = "Significant synthetic samples")
+
+```
+
+#### Chr20
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr20, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr20, nrow(data_control), lines_vectors_list$Chr20, "Chr20")
+
+knitr::kable(df_outliers_list$Chr20, caption = "Significant synthetic samples")
+
+```
+
+#### Chr21
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr21, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr21, nrow(data_control), lines_vectors_list$Chr21, "Chr21")
+
+knitr::kable(df_outliers_list$Chr21, caption = "Significant synthetic samples")
+
+```
+
+#### Chr22
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+knitr::kable(df_top3_list$Chr22, caption = "Top 3 normalizations")
+
+create_ggplot(pca.data_top3_list$Chr22, nrow(data_control), lines_vectors_list$Chr22, "Chr22")
+
+knitr::kable(df_outliers_list$Chr22, caption = "Significant synthetic samples")
+
+```
+
+## Study of sexual chromosomes {.tabset}
+
+To analyze the sex chromosomes, the average coverage value for each chromosome was calculated in the control samples. Then, different normalizations were applied by dividing this value by the average coverage of other chromosomes or specific groups.
+
+Beta dispersion was calculated independently for the control XX and XY samples. This measure allows evaluating the internal dispersion of each cohort and, therefore, identifying which normalizations promote better clustering within each group.
+
+```{r create_normalized_sex_data_and_calculate_beta_disp, message=FALSE, echo=FALSE}
+
+sex_data_norm <- list()
+Beta_dispersions <- data.frame(matrix(ncol = 3, nrow = 0))
+colnames(Beta_dispersions) <- c("Normalized_by", "XX_dispersion", "XY_dispersion")
+
+normalizations <- c(paste0("Chr", 1:22), "autosomes")
+
+for(norm in normalizations){
+  sex_chrom_norm <- data.frame("Sample" = data_control$Sample, 
+                               "X_norm" = data_control$ChrX_mean/data_control[[paste0(norm, "_mean")]], 
+                               "Y_norm" = data_control$ChrY_mean/data_control[[paste0(norm, "_mean")]])
+
+  sex_chrom_norm <- sex_chrom_norm %>% dplyr::mutate(Y_norm = ifelse(is.nan(Y_norm), 
+                                                                      as.numeric("0.0002"),Y_norm), 
+                                                      Karyotype = ifelse(Y_norm < 0.5, "XX","XY"))
+
+  sex_data_norm[[paste0("Norm_", norm)]] <- sex_chrom_norm
+  
+  distance_matrix <- dist(sex_chrom_norm[, c("X_norm", "Y_norm")])
+  disp <- betadisper(distance_matrix, group = sex_chrom_norm$Karyotype)
+  Beta_dispersions[nrow(Beta_dispersions)+1,] <- c(paste0("Norm_", norm), disp$group.distances[1], disp$group.distances[2])
+}
+
+Beta_dispersions$XX_dispersion <- as.numeric(Beta_dispersions$XX_dispersion)
+Beta_dispersions$XY_dispersion <- as.numeric(Beta_dispersions$XY_dispersion)
+Beta_dispersions$mean_dispersion <- rowMeans(Beta_dispersions[, c("XX_dispersion", "XY_dispersion")], na.rm = TRUE)
+
+order_beta <- order(Beta_dispersions[,"mean_dispersion"])
+top_3_betas <- Beta_dispersions[order_beta[1:3],]
+rownames(top_3_betas) <- NULL
+knitr::kable(top_3_betas, caption = "Top 3 normalizations")
+best_norms <- rbind(best_norms, data.frame("Normalization" = top_3_betas$Normalized_by, "Chromosome" = rep("ChrX|Y", 3)))
+
+sex_top_plots <- list()
+
+for(t in 1:3){
+  p_sex <-ggplot2::ggplot(sex_data_norm[[top_3_betas$Normalized_by[t]]], aes(X_norm,Y_norm, colour = Karyotype)) +
+  ggplot2::geom_point(shape = 19, alpha=1, size = 2.5) +
+  labs(x = "Normalized X", y = "Normalized Y", title = paste0("Samples normalized using Top", t, " normalization (", top_3_betas$Normalized_by[t], ")")) +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), 
+        legend.text = element_text(size = 13), legend.title = element_text(size = 14), 
+        axis.title = element_text(size = 14), title = element_text(size = 14), 
+        text = element_text(size = 15)) +
+  scale_color_manual(values = c( "#cccccc", "#a19f9f"))
+  
+  sex_top_plots[[t]] <- p_sex
+}
+
+```
+
+### Top1
+
+```{r , message=FALSE, echo=FALSE, fig.align='center'}
+
+sex_top_plots[[1]]
+
+```
+
+### Top2
+
+```{r , message=FALSE, echo=FALSE, fig.align='center'}
+
+sex_top_plots[[2]]
+
+```
+
+### Top3
+
+```{r , message=FALSE, echo=FALSE, fig.align='center'}
+
+sex_top_plots[[3]]
+
+```
+
+```{r outputs, message=FALSE, echo=FALSE}
+
+write.csv2(signif_synthetics, file = paste0(params$output_dir, "Significant_synthetic_samples.csv"), row.names = F)
+write.csv2(best_norms, file = paste0(params$output_dir, "Best_normalizations.csv"), row.names = F)
+write.csv2(dispersions, file = paste0(params$output_dir, "Dispersions.csv"), row.names = F)
+write.csv2(Beta_dispersions, file = paste0(params$output_dir, "Beta_Dispersions.csv"), row.names = F)
+
+```
