@@ -18,7 +18,7 @@ colnames(pool_coverage_values) <- c("Sample", "Chr1_mean", "Chr2_mean", "Chr3_me
 
 for (i in 1:length(pool)){
   cov_doc <- read.delim2(pool[i],header = F)
-  pool_coverage_values[i,1] <- pool[i] %>% gsub("^.*/","",.)  %>% gsub("_aligned.*","",.)
+  pool_coverage_values[i,1] <- pool[i] %>% gsub("^.*/","",.)  %>% gsub("_aligned.*|\\.QCalign.*","",.)
   pool_coverage_values[i,2] <- cov_doc %>% dplyr::filter(V1 == "chr1") %>% dplyr::summarise(mean(as.numeric(V3)))
   pool_coverage_values[i,3] <- cov_doc %>% dplyr::filter(V1 == "chr2") %>% dplyr::summarise(mean(as.numeric(V3)))
   pool_coverage_values[i,4] <- cov_doc %>% dplyr::filter(V1 == "chr3") %>% dplyr::summarise(mean(as.numeric(V3)))

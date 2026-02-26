@@ -9,6 +9,8 @@ params:
   synthetic_data: NULL
   synthetic: NULL
   best_norms: NULL
+  threshold_signif: NULL
+  output_dir: NULL
 ---
 
 ```{r create_plots, echo=FALSE, include=FALSE}
@@ -172,6 +174,9 @@ data_sex <- rbind(data_control, data_pool)
 norms <- subset(best_norms, best_norms$Chromosome=="ChrX|Y")
 top_norm <- 1
 
+altered_sexual <- data.frame(matrix(nrow = 0, ncol = 2))
+colnames(altered_sexual) <- c("Sample", "Infered_Kariotype")
+
 for(n in norms$Normalization){
   if(n=="Norm_all"){
       Norm <- data.frame("Sample" = data_sex$Sample, 
@@ -186,6 +191,64 @@ for(n in norms$Normalization){
   Norm <- Norm %>% dplyr::mutate(Y_norm = ifelse(is.nan(Y_norm), as.numeric("0.0002"),Y_norm), 
                                  Karyotype = ifelse(Y_norm < 0.25, "XX","XY"))
   Norm <- Norm %>% dplyr::mutate(Pool = ifelse(Sample %in% data_pool$Sample, "Sample", "Control"))
+  
+  XX <- subset(Norm, Norm$Karyotype=="XX"&Norm$Pool=="Control")
+  XX_Q1_X <- quantile(XX$X_norm, 0.25)
+  XX_Q3_X <- quantile(XX$X_norm, 0.75)
+  XX_Q1_Y <- quantile(XX$Y_norm, 0.25)
+  XX_Q3_Y <- quantile(XX$Y_norm, 0.75)
+  XX_IQR_value_X <- IQR(XX$X_norm)
+  XX_IQR_value_Y <- IQR(XX$Y_norm)
+  threshold_Xlow_XX <- (XX_Q1_X - params$threshold_signif * XX_IQR_value_X)
+  threshold_Xupp_XX <- (XX_Q3_X + params$threshold_signif * XX_IQR_value_X)
+  threshold_Ylow_XX <- (XX_Q1_Y - params$threshold_signif * XX_IQR_value_Y)
+  threshold_Yupp_XX <- (XX_Q3_Y + params$threshold_signif * XX_IQR_value_Y)
+  
+  XY <- subset(Norm, Norm$Karyotype=="XY"&Norm$Pool=="Control")
+  XY_Q1_X <- quantile(XY$X_norm, 0.25)
+  XY_Q3_X <- quantile(XY$X_norm, 0.75)
+  XY_Q1_Y <- quantile(XY$Y_norm, 0.25)
+  XY_Q3_Y <- quantile(XY$Y_norm, 0.75)
+  XY_IQR_value_X <- IQR(XY$X_norm)
+  XY_IQR_value_Y <- IQR(XY$Y_norm)
+  threshold_Xlow_XY <- (XY_Q1_X - params$threshold_signif * XY_IQR_value_X)
+  threshold_Xupp_XY <- (XY_Q3_X + params$threshold_signif * XY_IQR_value_X)
+  threshold_Ylow_XY <- (XY_Q1_Y - params$threshold_signif * XY_IQR_value_Y)
+  threshold_Yupp_XY <- (XY_Q3_Y + params$threshold_signif * XY_IQR_value_Y)
+  
+  samples <- subset(Norm, Norm$Pool=="Sample")
+  
+  for(s in 1:nrow(samples)){
+    samp <- samples[s,]
+    if(samp$X_norm>threshold_Xupp_XX&samp$Y_norm<threshold_Yupp_XX){
+      samp$Karyotype <- "XXX"
+      altered_sexual[nrow(altered_sexual)+1,] <- samp[,c("Sample", "Karyotype")]
+    }
+    if(samp$X_norm>threshold_Xlow_XX&samp$Y_norm>threshold_Yupp_XX){
+      samp$Karyotype <- "XXY"
+      altered_sexual[nrow(altered_sexual)+1,] <- samp[,c("Sample", "Karyotype")]
+    }
+    if(samp$X_norm<threshold_Xlow_XX&samp$X_norm>threshold_Xupp_XY&samp$Y_norm>threshold_Yupp_XX){
+      samp$Karyotype <- "M-XXY"
+      altered_sexual[nrow(altered_sexual)+1,] <- samp[,c("Sample", "Karyotype")]
+    }
+    if(samp$X_norm<threshold_Xupp_XY&samp$Y_norm<threshold_Yupp_XX){
+      samp$Karyotype <- "X0"
+      altered_sexual[nrow(altered_sexual)+1,] <- samp[,c("Sample", "Karyotype")]
+    }
+    if(samp$X_norm<threshold_Xlow_XX&samp$X_norm>threshold_Xupp_XY&samp$Y_norm<threshold_Yupp_XX){
+      samp$Karyotype <- "M-X0"
+      altered_sexual[nrow(altered_sexual)+1,] <- samp[,c("Sample", "Karyotype")]
+    }
+    if(samp$Y_norm<threshold_Ylow_XY&samp$X_norm<threshold_Xupp_XY&samp$Y_norm>threshold_Yupp_XX){
+      samp$Karyotype <- "Yp"
+      altered_sexual[nrow(altered_sexual)+1,] <- samp[,c("Sample", "Karyotype")]
+    }
+    if(samp$X_norm<threshold_Xupp_XY&samp$Y_norm>threshold_Yupp_XY){
+      samp$Karyotype <- "XYY"
+      altered_sexual[nrow(altered_sexual)+1,] <- samp[,c("Sample", "Karyotype")]
+    }
+  }
   
   plot <- plot_ly(
         data = Norm,
@@ -226,11 +289,34 @@ for(n in norms$Normalization){
                                 yaxis = list(title = "Normalized Y"), 
                                 legend=list(title=list(text='<b> Karyotypes </b>')))
       
+      plot <- plot %>% layout(
+        shapes = list(
+          list(type = "line", x0 = threshold_Xlow_XX, x1 = threshold_Xlow_XX, 
+               y0 = 0, y1 = 1, yref = "paper", line = list(color = "gray", dash = "dash")),
+          list(type = "line", x0 = threshold_Xupp_XX, x1 = threshold_Xupp_XX, 
+               y0 = 0, y1 = 1, yref = "paper", line = list(color = "gray", dash = "dash")),
+          list(type = "line", x0 = threshold_Xlow_XY, x1 = threshold_Xlow_XY, 
+               y0 = 0, y1 = 1, yref = "paper", line = list(color = "gray", dash = "dash")),
+          list(type = "line", x0 = threshold_Xupp_XY, x1 = threshold_Xupp_XY, 
+               y0 = 0, y1 = 1, yref = "paper", line = list(color = "gray", dash = "dash")),
+          list(type = "line", x0 = 0, x1 = 1, xref = "paper", 
+               y0 = threshold_Ylow_XX, y1 = threshold_Ylow_XX, line = list(color = "gray", dash = "dash")),
+          list(type = "line", x0 = 0, x1 = 1, xref = "paper", 
+               y0 = threshold_Yupp_XX, y1 = threshold_Yupp_XX, line = list(color = "gray", dash = "dash")), 
+          list(type = "line", x0 = 0, x1 = 1, xref = "paper", 
+               y0 = threshold_Ylow_XY, y1 = threshold_Ylow_XY, line = list(color = "gray", dash = "dash")),
+          list(type = "line", x0 = 0, x1 = 1, xref = "paper", 
+               y0 = threshold_Yupp_XY, y1 = threshold_Yupp_XY, line = list(color = "gray", dash = "dash"))
+        )
+      )
+      
       plotlis[[paste0("sex_", top_norm)]] <- plot
   
   top_norm <- top_norm + 1
   
 }
+
+saveRDS(plotlis, file = paste0(params$output_dir, "Aneup_plotlis.rds"))
 
 ```
 
@@ -241,9 +327,14 @@ This report contains the results of the detection of autosomal and sexual anuepl
 ```{r, echo=FALSE}
 
 if(nrow(altered_aneu)==0){
+  
+  write.csv(altered_aneu, file = paste0(params$output_dir, "AutosomesAneup_WARNING.csv"), row.names = F)
+  
   altered_aneu[1,] <- c("    ", "    ")
   altered_aneu[2,] <- c("    ", "    ")
-  knitr::kable(altered_aneu)
+  
+  knitr::kable(altered_aneu, row.names = FALSE)
+  
 } else{
   
   altered_aneu_combined <- altered_aneu %>%
@@ -254,7 +345,10 @@ if(nrow(altered_aneu)==0){
   ) %>%
   arrange(Altered_autosome)
   
-  knitr::kable(altered_aneu_combined)
+  write.csv(altered_aneu_combined, file = paste0(params$output_dir, "AutosomesAneup_WARNING.csv"), row.names = F)
+  
+  knitr::kable(altered_aneu_combined, row.names = FALSE)
+  
 }
 
 ```
@@ -436,6 +530,29 @@ plotlis$Chr22
 ```
 
 ## Sexual aneuploidies {.tabset}
+
+```{r, echo=FALSE}
+
+if(nrow(altered_sexual)==0){
+  
+  write.csv(altered_sexual, file = paste0(params$output_dir, "SexualAneup_WARNING.csv"), row.names = F)
+  
+  altered_sexual[1,] <- c("    ", "    ")
+  altered_sexual[2,] <- c("    ", "    ")
+  
+  knitr::kable(altered_sexual, row.names = FALSE)
+  
+} else{
+  
+  altered_sexual <- unique(altered_sexual)
+  
+  write.csv(altered_sexual, file = paste0(params$output_dir, "SexualAneup_WARNING.csv"), row.names = F)
+  
+  knitr::kable(altered_sexual, row.names = FALSE)
+  
+}
+
+```
 
 ### XX-XY 1st Normalization
 

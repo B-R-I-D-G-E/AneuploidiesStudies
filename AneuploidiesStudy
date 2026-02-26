@@ -1,0 +1,208 @@
+#!/bin/bash
+
+# Save the subcommand
+subcommand=$1
+shift  # Remove the subcommand from $@
+
+# Default values
+genome="hg38"
+threshold=50
+thresholdsignif=5.5
+bed="NA"
+
+# Help info
+print_help() {
+  echo ""
+  echo "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo "Usage: AneuploidiesStudy <command> [options]"
+  echo ""
+  echo "Available commands:"
+  echo "  coverage_rdata    Create coverage.RData file"
+  echo "  cohort_study      Run cohort analysis"
+  echo "  pool_study        Run pool analysis"
+  echo "  merge_RDatas      Merge coverage.RData files"
+  echo ""
+  echo "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo ""
+  echo "Parameters for 'coverage_rdata':"
+  echo "Mandatory:"
+  echo "  -d / --directory          Directory where the cohort coverage files are saved. The RData file will be generated in this directory."
+  echo ""
+  echo "Optional:"
+  echo "  -f / --outputfile         Output RData file name. Default is 'Coverage.RData'."
+  echo ""
+  echo "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo ""
+  echo "Parameters for 'cohort_study':"
+  echo "Mandatory:"
+  echo "  -c / --control            Full path to the control RData file you want to analyze. (Generated using the coverage_rdata function)"
+  echo ""
+  echo "Optional:"
+  echo "  -b / --bed                Full path to the BED file used. This parameter is null by default. If not provided, the coverage section of the HTML report will be empty."
+  echo "  -g / --genome             Reference genome to be used for the coverage part of the report. Default is 'hg38'."
+  echo "  -t / --threshold          Threshold used for initial sample filtering (minimum mean of reads for all autosomes). Default is 50."
+  echo "  -y / --thresholdsignif    Threshold to define which synthetic samples are considered significantly different from the control cohort."
+  echo "                            (This value multiplies the interquartile range between the 1st and 3rd quartile to define the threshold). Default is 5.5."
+  echo "  -o / --outputdir          Output directory. Default is the directory of the control cohort RData file."
+  echo "  -f / --outputfile         Output HTML report file name. Default is 'ControlCohort_report.html'."
+  echo ""
+  echo "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo ""
+  echo "Parameters for 'pool_study':"
+  echo "Mandatory:"
+  echo "  -p / --pool               Full path to the Pool RData file you want to analyze. (Generated using the coverage_rdata function)"
+  echo "  -c / --control            Full path to the Control RData file you want to use as the reference for analysis. (Generated using the coverage_rdata function)"
+  echo "  -s / --synthetic          Full path to the Synthetic RData file you want to use as the reference for analysis. (Generated using the cohort_study function)"
+  echo "  -n / --bestnorms          CSV file with the three best normalizations for each chromosome in your control cohort. (Generated using the cohort_study function)"
+  echo "  -x / --signifsynth        CSV file with the significant synthetic samples for each autosome. (Generated using the cohort_study function)"
+  echo "  -y / --thresholdsignif    Threshold to define which samples are considered significantly different from the control cohort."
+  echo "                            (This value multiplies the interquartile range between the 1st and 3rd quartile to define the threshold). Default is 5.5."
+  echo ""
+  echo "Optional:"
+  echo "  -o / --outputdir          Output directory. Default is the directory of the control cohort RData file."
+  echo "  -f / --outputfile         Output HTML report file name. Default is 'Pool_Aneuploidies_report.html'."
+  echo ""
+  echo "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo ""
+  echo "Parameters for 'merge_RDatas':"
+  echo "Mandatory:"
+  echo "  -r / --rdats              Full path to the directory where RData file that you want to merge are stored. (Generated using the coverage_rdata function)"
+  echo ""
+  echo "Optional:"
+  echo "  -p / --pattern            R pattern that could be used to identify the RData files that you want to merge in the directory (by default "*.RData$")"
+  echo "  -o / --outputdir          Output directory. Default is the directory of the original RData files."
+  echo "  -f / --outputfile         Output RData file name. Default is 'Merged.RData'."
+  echo ""
+  echo "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+}
+
+
+# === FUNCTIONS ===
+
+coverage_rdata() {
+  TEMP=$(getopt -o d:f: -l directory:,outputfile: -n 'coverage_rdata' -- "$@")
+  eval set -- "$TEMP"
+
+  while true; do
+    case "$1" in
+      -d|--directory) directory="$2"; shift 2 ;;
+      -f|--outputfile) outputfile="$2"; shift 2 ;;
+      --) shift; break ;;
+      *) echo "Unexpected option $1"; exit 1 ;;
+    esac
+  done
+
+  # Validar
+  if [ -z "$directory" ]; then
+    echo "❌ Error: --directory is mandatory"
+    exit 1
+  fi
+
+  outputfile="${outputfile:-Coverage.RData}"
+
+  echo "✅ Executing coverage_rdata with directory: $directory"
+  Rscript ./Scripts/Create_Coverage_RData.R "$directory" "$outputfile"
+}
+
+cohort_study() {
+  TEMP=$(getopt -o c:b:g:t:y:o:f: -l control:,bed:,genome:,threshold:,thresholdsignif:,outputdir:,outputfile: -n 'cohort_study' -- "$@")
+  eval set -- "$TEMP"
+
+  while true; do
+    case "$1" in
+      -c|--control) control="$2"; shift 2 ;;
+      -b|--bed) bed="$2"; shift 2 ;;
+      -g|--genome) genome="$2"; shift 2 ;;
+      -t|--threshold) threshold="$2"; shift 2 ;;
+      -y|--thresholdsignif) thresholdsignif="$2"; shift 2 ;;
+      -o|--outputdir) outputdir="$2"; shift 2 ;;
+      -f|--outputfile) outputfile="$2"; shift 2 ;;
+      --) shift; break ;;
+      *) echo "Unexpected option $1"; exit 1 ;;
+    esac
+  done
+
+  if [ -z "$control" ]; then
+    echo "❌ Error: --control argument is compulsory"
+    exit 1
+  fi
+
+  outputdir="${outputdir:-$(dirname "$control")}"
+  outputfile="${outputfile:-ControlCohort_report.html}"
+
+  echo "✅ Executing cohort_study with control: $control"
+  Rscript ./Scripts/Execute_aneuploidies_controlcohort_study.R \
+    "$control" "$bed" "$genome" "$threshold" "$thresholdsignif" "$outputdir" "$outputfile"
+}
+
+pool_study() {
+  TEMP=$(getopt -o p:c:s:n:x:y:o:f: -l pool:,control:,synthetic:,bestnorms:,signifsynth:,thresholdsignif:,outputdir:,outputfile: -n 'pool_study' -- "$@")
+  eval set -- "$TEMP"
+
+  while true; do
+    case "$1" in
+      -p|--pool) pool="$2"; shift 2 ;;
+      -c|--control) control="$2"; shift 2 ;;
+      -s|--synthetic) synthetic="$2"; shift 2 ;;
+      -n|--bestnorms) bestnorms="$2"; shift 2 ;;
+      -x|--signifsynth) signifsynth="$2"; shift 2 ;;
+      -y|--thresholdsignif) thresholdsignif="$2"; shift 2 ;;
+      -o|--outputdir) outputdir="$2"; shift 2 ;;
+      -f|--outputfile) outputfile="$2"; shift 2 ;;
+      --) shift; break ;;
+      *) echo "Unexpected option $1"; exit 1 ;;
+    esac
+  done
+
+  if [ -z "$pool" ] || [ -z "$control" ] || [ -z "$synthetic" ] || [ -z "$bestnorms" ] || [ -z "$signifsynth" ]; then
+    echo "❌ Error: Mandatory parameters are missing"
+    exit 1
+  fi
+
+  outputdir="${outputdir:-$(dirname "$control")}"
+  outputfile="${outputfile:-Pool_Aneuploidies_report.html}"
+
+  echo "✅ Executing pool_study"
+  Rscript ./Scripts/Execute_aneuploidies_pool_study.R \
+    "$pool" "$control" "$synthetic" "$signifsynth" "$bestnorms" "$thresholdsignif" "$outputdir" "$outputfile"
+}
+
+merge_RDatas() {
+  TEMP=$(getopt -o r:p:o:f: -l rdats:,pattern:,outputdir:,outputfile: -n 'merge_RDatas' -- "$@")
+  eval set -- "$TEMP"
+
+  while true; do
+    case "$1" in
+      -r|--rdats) rdats="$2"; shift 2 ;;
+      -p|--pattern) pattern="$2"; shift 2 ;;
+      -o|--outputdir) outputdir="$2"; shift 2 ;;
+      -f|--outputfile) outputfile="$2"; shift 2 ;;
+      --) shift; break ;;
+      *) echo "Unexpected option $1"; exit 1 ;;
+    esac
+  done
+
+  if [ -z "$rdats" ]; then
+    echo "❌ Error: Mandatory parameters are missing"
+    exit 1
+  fi
+
+  pattern="${pattern:-"*.RData$"}"
+  outputdir="${outputdir:-$rdats}"
+  outputfile="${outputfile:-Merged.RData}"
+
+  echo "✅ Executing pool_study"
+  Rscript ./Scripts/Merge_RDatas.R \
+    "$rdats" "$pattern" "$outputdir" "$outputfile"
+}
+
+# === EXECUTION BASE ON SUBCOMAND ===
+
+case "$subcommand" in
+  coverage_rdata) coverage_rdata "$@" ;;
+  cohort_study) cohort_study "$@" ;;
+  pool_study) pool_study "$@" ;;
+  merge_RDatas) merge_RDatas "$@" ;;
+  -h|--help|"") print_help ;;
+  *) echo "❌ Unknown command: $subcommand"; print_help; exit 1 ;;
+esac

@@ -5,7 +5,7 @@ args <- commandArgs(TRUE)
 library(rmarkdown)
 library(stringr)
 
-rmarkdown::render("/Scripts/Automatic_study_of_aneuplidies_control_cohort_V3.Rmd", 
+rmarkdown::render("./Scripts/Automatic_study_of_aneuplidies_control_cohort_V3.Rmd", 
                   params = list(control_data = args[1], 
                                 bed_file = args[2], 
                                 genome = args[3],

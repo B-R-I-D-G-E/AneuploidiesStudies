@@ -26,12 +26,16 @@ RUN install2.r --error --deps TRUE \
 RUN rm -fr /var/lib/apt/lists/*
 RUN apt autoremove && apt update -y && apt install -y --no-install-recommends libxt6 imagemagick
 RUN mkdir /appdata
-COPY ./testdata/test_data.zip /appdata
+COPY ./test_data.zip /appdata
 RUN \
     cd /appdata && \
     unzip test_data.zip
 
-COPY ./scripts/* /home/rstudio/
+COPY ./Scripts.zip /home/rstudio/
+RUN \
+    cd /home/rstudio && \
+    unzip Scripts.zip
+COPY ./AneuploidiesStudy /home/rstudio
 RUN chown -R rstudio:rstudio /home/rstudio/
 WORKDIR /home/rstudio
 ENTRYPOINT ["/bin/bash"]

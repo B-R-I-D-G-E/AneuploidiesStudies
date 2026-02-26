@@ -8,7 +8,7 @@ Utilizing coverage data from next-generation sequencing (NGS), this repository p
 ## **Installation** 
 
 ```bash
-docker build -t AneuploidiesStudies /path/to/Dockerfile
+docker build -t aneuploidiesstudy /path/to/Dockerfile/Directory
 ```
 
 ---
@@ -34,9 +34,9 @@ AneuploidiesStudy coverage_rdata -d <directory> -f <output_name.RData>
 ##### **Example:**
 
 ```bash
-docker run AneuploidiesStudy:latest AneuploidiesStudy coverage_rdata -d /appdata/test_data/ControlCoverage_files
+docker run aneuploidiesstudy:latest AneuploidiesStudy coverage_rdata -d /appdata/test_data/ControlCoverage_files
 
-docker run AneuploidiesStudy:latest AneuploidiesStudy coverage_rdata -d /appdata/test_data/PoolCoverage_files
+docker run aneuploidiesstudy:latest AneuploidiesStudy coverage_rdata -d /appdata/test_data/PoolCoverage_files
 ```
 
 ##### **Output:**
@@ -70,7 +70,7 @@ AneuploidiesStudy cohort_study -c <control.RData> -b <file.bed> -g <genome> -t <
 ##### **Example:**
 
 ```bash
-docker run AneuploidiesStudy:latest AneuploidiesStudy cohort_study \
+docker run aneuploidiesstudy:latest AneuploidiesStudy cohort_study \
   -c /appdata/test_data/ControlCoverage_files/Coverage.RData
 ```
 
@@ -103,6 +103,8 @@ AneuploidiesStudy pool_study -p <pool.RData> -c <control.RData> -s <synthetic.RD
 
 **`-x` / `--signifsynth`**: CSV file with significant synthetic samples generated in the control cohort study.
 
+**`-y` / `--thresholdsignif`**: (Optional) Threshold to define significantly different samples. Default value is 5.5.
+
 **`-o` / `--outputdir`**: (Optional) Output directory. If not provided, the directory of the control `.RData` file will be used.
 
 **`-f` / `--outputfile`**: (Optional) Name of the report in HTML format. Default value is `Pool_Aneuploidies_report.html`.
@@ -110,17 +112,49 @@ AneuploidiesStudy pool_study -p <pool.RData> -c <control.RData> -s <synthetic.RD
 ##### **Example:**
 
 ```bash
-docker run AneuploidiesStudy:latest AneuploidiesStudy pool_study \
+docker run aneuploidiesstudy:latest AneuploidiesStudy pool_study \
   -p /appdata/test_data/PoolCoverage_files/Coverage.RData \
   -c /appdata/test_data/ControlCoverage_files/Coverage.RData \
-  -s /appdata/test_data/ControlCoverage_files/Synthetic.RData \
+  -s /appdata/test_data/ControlCoverage_files/Synthetic_data.RData \
   -n /appdata/test_data/ControlCoverage_files/Best_normalizations.csv \
-  -x /appdata/test_data/ControlCoverage_files/Significant_synthetic_samples.csv
+  -x /appdata/test_data/ControlCoverage_files/Significant_synthetic_samples.csv \
+  -y 20
 ```
 
 ##### **Output:**
 
 - An HTML report that displays the samples that were identified as outliers on the autosomes, as well as interactive graphs that allow users to compare the pooled samples to the control and synthetic significant samples on the autosomes and sex chromosomes.
+
+---
+
+### 4. merge_RDatas function:
+
+This function merges RData files generated with the coverage_rdata function into one single RData. 
+
+##### **Command:**
+
+```bash
+AneuploidiesStudy merge_RDatas -r <RDatas_dir> -p <RData_SelectionPattern> -o <output_dir> -f <output_file.RData>
+```
+
+**`-r` / `--rdats`**: Full path to the directory where `.RData` file that you want to merge are stored. (Generated using the coverage_rdata function)
+
+**`-p` / `--pattern`**: (Optional) R pattern that could be used to identify the RData files that you want to merge in the directory (by default `"*.RData$"`).
+
+**`-o` / `--outputdir`**: (Optional) Output directory. Default is the directory of the original RData files.
+
+**`-f` / `--outputfile`**: (Optional) Output RData file name. Default is 'Merged.RData'.
+
+##### **Example:**
+
+```bash
+docker run AneuploidiesStudy:latest AneuploidiesStudy merge_RDatas \
+  -r /appdata/test_data/PoolCoverage_by_sample 
+```
+
+##### **Output:**
+
+- Merged RData with all samples from the original RDatas. 
 
 ---
 
