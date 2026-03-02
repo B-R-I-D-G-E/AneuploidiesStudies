@@ -111,7 +111,7 @@ for(c in Chromosomes){
                    marker = list(color = colores),
                    showlegend = FALSE, hoverinfo = "none")
   
-  morado_data <- as.data.frame(pca.data[rownames(pca.data) %in% data_pool$Sample, ])
+  morado_data <- as.data.frame(pca.data[rownames(pca.data) %in% data_pool$Sample, , drop = FALSE])
   synth_1 <- data.frame("PC1"= pca.data[rownames(pca.data) %in% synthetic[grepl("Trisomy", synthetic$Sample),]$Sample, ][,1], 
                         "PC2"= pca.data[rownames(pca.data) %in% synthetic[grepl("Trisomy", synthetic$Sample),]$Sample, ][,2], 
                         "PC3"= pca.data[rownames(pca.data) %in% synthetic[grepl("Trisomy", synthetic$Sample),]$Sample, ][,3])
